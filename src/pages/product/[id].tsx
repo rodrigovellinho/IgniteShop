@@ -4,28 +4,55 @@ import {
   ProductContainer,
   ProductDetails,
 } from "../../styles/pages/product";
-import { GetStaticProps } from "next";
+import { GetStaticPaths, GetStaticProps } from "next";
 import { stripe } from "../../lib/stripe";
 import Stripe from "stripe";
 import Head from "next/head";
+import axios from "axios";
+import { useState } from "react";
+import Image from "next/image";
 
 interface ProductProps {
   product: {
     id: string;
     name: string;
     imageUrl: string;
-    price: number;
+    price: string;
     description: string;
+    defaultPriceId: string;
   };
 }
 
 export default function Product({ product }: ProductProps) {
-  const { query } = useRouter();
+  const [isCreatingCheckoutSession, setIsCreatingCheckouSession] =
+    useState(false);
+
+  const { isFallback } = useRouter();
+
+  async function handleBuyProduct() {
+    try {
+      setIsCreatingCheckouSession(true);
+      const response = await axios.post("/api/checkout", {
+        priceId: product.defaultPriceId,
+      });
+
+      const { checkoutUrl } = response.data;
+
+      window.location.href = checkoutUrl;
+    } catch (err) {
+      setIsCreatingCheckouSession(false);
+      alert("Falha ao redirecionar ao checkout!");
+    }
+  }
+
+  if (isFallback) {
+    return <p>Loading...</p>;
+  }
   return (
     <>
-      {/*   <Head>
+      <Head>
         <title>{product.name} | Ignite Shop</title>
-      </Head> */}
+      </Head>
 
       <ProductContainer>
         <ImageContainer>
@@ -39,8 +66,8 @@ export default function Product({ product }: ProductProps) {
           <p>{product.description}</p>
 
           <button
-          /*    disabled={isCreatingCheckoutSession}
-            onClick={handleBuyProduct} */
+            disabled={isCreatingCheckoutSession}
+            onClick={handleBuyProduct}
           >
             Comprar agora
           </button>
@@ -49,6 +76,13 @@ export default function Product({ product }: ProductProps) {
     </>
   );
 }
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    paths: [{ params: { id: "prod_NBePk4It6Pnddz" } }],
+    fallback: true,
+  };
+};
 
 export const getStaticProps: GetStaticProps<any, { id: string }> = async ({
   params,
